@@ -199,6 +199,8 @@ export default function Index() {
   const [inputValue, setInputValue] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [callModal, setCallModal] = useState<{ contact: string; type: "voice" | "video" } | null>(null);
+  const [pinnedIds, setPinnedIds] = useState<Set<number>>(new Set());
+  const [contextMenu, setContextMenu] = useState<{ chatId: number; x: number; y: number } | null>(null);
   const [messages, setMessages] = useState<Record<number, Message[]>>(
     Object.fromEntries(CHATS.map(c => [c.id, c.messages]))
   );
@@ -216,9 +218,27 @@ export default function Index() {
     setInputValue("");
   };
 
-  const filteredChats = CHATS.filter(c =>
-    c.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const togglePin = (id: number) => {
+    setPinnedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) { next.delete(id); } else { next.add(id); }
+      return next;
+    });
+    setContextMenu(null);
+  };
+
+  const handleContextMenu = (e: React.MouseEvent, chatId: number) => {
+    e.preventDefault();
+    setContextMenu({ chatId, x: e.clientX, y: e.clientY });
+  };
+
+  const sortedChats = [...CHATS]
+    .filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => {
+      const ap = pinnedIds.has(a.id) ? 0 : 1;
+      const bp = pinnedIds.has(b.id) ? 0 : 1;
+      return ap - bp;
+    });
 
   const navItems = [
     { id: "chats" as Section, icon: "MessageCircle", label: "Чаты" },
@@ -286,42 +306,64 @@ export default function Index() {
 
         {/* Чаты */}
         {section === "chats" && (
-          <div className="overflow-y-auto flex-1">
-            {filteredChats.map((chat) => (
-              <button
-                key={chat.id}
-                onClick={() => setSelectedChat(chat)}
-                className="w-full flex items-center gap-3 px-4 py-3 transition-all duration-150 text-left"
-                style={{ background: selectedChat?.id === chat.id ? "var(--tg-hover)" : "transparent" }}
-              >
-                <Avatar text={chat.avatar} online={chat.online} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-baseline">
-                    <span className="font-semibold text-sm truncate" style={{ color: "var(--tg-text)" }}>{chat.name}</span>
-                    <span className="text-xs flex-shrink-0 ml-2" style={{ color: "var(--tg-text-secondary)" }}>{chat.time}</span>
-                  </div>
-                  <div className="flex justify-between items-center mt-0.5">
-                    {chat.typing ? (
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs" style={{ color: "var(--tg-accent)" }}>печатает</span>
-                        <div className="flex gap-0.5">
-                          {[0, 1, 2].map(i => (
-                            <span key={i} className="w-1 h-1 rounded-full typing-dot" style={{ background: "var(--tg-accent)", animationDelay: `${i * 0.2}s` }} />
-                          ))}
-                        </div>
+          <div className="overflow-y-auto flex-1" onClick={() => setContextMenu(null)}>
+            {pinnedIds.size > 0 && (
+              <div className="px-4 pt-2 pb-1">
+                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--tg-text-secondary)" }}>Закреплённые</span>
+              </div>
+            )}
+            {sortedChats.map((chat, idx) => {
+              const isPinned = pinnedIds.has(chat.id);
+              const prevPinned = idx > 0 ? pinnedIds.has(sortedChats[idx - 1].id) : true;
+              const showDivider = !isPinned && prevPinned && pinnedIds.size > 0;
+              return (
+                <div key={chat.id}>
+                  {showDivider && (
+                    <div className="px-4 pt-3 pb-1">
+                      <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--tg-text-secondary)" }}>Все чаты</span>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => setSelectedChat(chat)}
+                    onContextMenu={(e) => handleContextMenu(e, chat.id)}
+                    className="w-full flex items-center gap-3 px-4 py-3 transition-all duration-150 text-left relative"
+                    style={{ background: selectedChat?.id === chat.id ? "var(--tg-hover)" : "transparent" }}
+                  >
+                    {isPinned && (
+                      <div className="absolute top-2 right-3">
+                        <Icon name="Pin" size={11} style={{ color: "var(--tg-accent)", opacity: 0.7 }} />
                       </div>
-                    ) : (
-                      <span className="text-xs truncate" style={{ color: "var(--tg-text-secondary)" }}>{chat.lastMessage}</span>
                     )}
-                    {chat.unread > 0 && (
-                      <span className="ml-2 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-white font-semibold" style={{ background: "var(--tg-accent)", fontSize: 10 }}>
-                        {chat.unread}
-                      </span>
-                    )}
-                  </div>
+                    <Avatar text={chat.avatar} online={chat.online} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-baseline">
+                        <span className="font-semibold text-sm truncate" style={{ color: "var(--tg-text)" }}>{chat.name}</span>
+                        <span className="text-xs flex-shrink-0 ml-2" style={{ color: "var(--tg-text-secondary)" }}>{chat.time}</span>
+                      </div>
+                      <div className="flex justify-between items-center mt-0.5">
+                        {chat.typing ? (
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs" style={{ color: "var(--tg-accent)" }}>печатает</span>
+                            <div className="flex gap-0.5">
+                              {[0, 1, 2].map(i => (
+                                <span key={i} className="w-1 h-1 rounded-full typing-dot" style={{ background: "var(--tg-accent)", animationDelay: `${i * 0.2}s` }} />
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-xs truncate" style={{ color: "var(--tg-text-secondary)" }}>{chat.lastMessage}</span>
+                        )}
+                        {chat.unread > 0 && (
+                          <span className="ml-2 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-white font-semibold" style={{ background: "var(--tg-accent)", fontSize: 10 }}>
+                            {chat.unread}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
                 </div>
-              </button>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -565,6 +607,46 @@ export default function Index() {
             <h2 className="text-lg font-semibold mb-1" style={{ color: "var(--tg-text)" }}>Веста</h2>
             <p className="text-sm" style={{ color: "var(--tg-text-secondary)" }}>Выберите чат для начала общения</p>
           </div>
+        </div>
+      )}
+
+      {/* Контекстное меню */}
+      {contextMenu && (
+        <div
+          className="fixed z-50 rounded-xl overflow-hidden shadow-2xl animate-scale-in"
+          style={{ top: contextMenu.y, left: contextMenu.x, background: "var(--tg-bg)", border: "1px solid var(--tg-border)", minWidth: 180 }}
+        >
+          <button
+            onClick={() => togglePin(contextMenu.chatId)}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors hover:opacity-80 text-left"
+            style={{ background: "transparent", color: "var(--tg-text)" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "var(--tg-hover)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+          >
+            <Icon name={pinnedIds.has(contextMenu.chatId) ? "PinOff" : "Pin"} size={16} style={{ color: "var(--tg-accent)" }} />
+            {pinnedIds.has(contextMenu.chatId) ? "Открепить" : "Закрепить"}
+          </button>
+          <button
+            onClick={() => setContextMenu(null)}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors text-left"
+            style={{ background: "transparent", color: "var(--tg-text)" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "var(--tg-hover)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+          >
+            <Icon name="BellOff" size={16} style={{ color: "var(--tg-text-secondary)" }} />
+            Отключить звук
+          </button>
+          <div style={{ borderTop: "1px solid var(--tg-border)" }} />
+          <button
+            onClick={() => setContextMenu(null)}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors text-left"
+            style={{ background: "transparent", color: "#e53e3e" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(229,62,62,0.08)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+          >
+            <Icon name="Trash2" size={16} style={{ color: "#e53e3e" }} />
+            Удалить чат
+          </button>
         </div>
       )}
     </div>
