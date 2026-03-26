@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
 
-type Section = "chats" | "contacts" | "groups" | "notifications" | "settings" | "profile";
+type Section = "chats" | "contacts" | "groups" | "channels" | "notifications" | "settings" | "profile";
 
 interface Message {
   id: number;
@@ -120,6 +120,68 @@ const GROUPS = [
   { name: "Семья", members: 5, avatar: "❤️", description: "Семейный чат" },
 ];
 
+interface Channel {
+  id: number;
+  name: string;
+  avatar: string;
+  description: string;
+  subscribers: string;
+  verified: boolean;
+  posts: { id: number; text: string; time: string; views: number; image?: string }[];
+}
+
+const CHANNELS: Channel[] = [
+  {
+    id: 101,
+    name: "Технологии сегодня",
+    avatar: "ТС",
+    description: "Новости мира IT, стартапы, разработка",
+    subscribers: "128 тыс.",
+    verified: true,
+    posts: [
+      { id: 1, text: "🚀 OpenAI представила новую модель с улучшенным reasoning. По тестам она значительно превосходит предшественников в математике и программировании.", time: "22:00", views: 14200 },
+      { id: 2, text: "📱 Apple анонсировала обновление iOS 18.4 с новыми функциями для разработчиков. Релиз ожидается на следующей неделе.", time: "20:30", views: 9800 },
+      { id: 3, text: "💻 GitHub Copilot теперь поддерживает более 30 языков программирования. Подписчики уже отмечают заметное улучшение качества подсказок.", time: "18:15", views: 7300 },
+    ],
+  },
+  {
+    id: 102,
+    name: "Дизайн и UX",
+    avatar: "DX",
+    description: "Лучшие практики дизайна интерфейсов",
+    subscribers: "54 тыс.",
+    verified: false,
+    posts: [
+      { id: 1, text: "🎨 Figma выкатила AI-инструмент для автоматической генерации компонентов. Теперь дизайн-системы строятся в разы быстрее.", time: "21:00", views: 5600 },
+      { id: 2, text: "✏️ Топ-5 ошибок начинающих UX-дизайнеров — разбираем каждую с примерами. Сохраняй, чтобы не потерять.", time: "14:00", views: 8200 },
+    ],
+  },
+  {
+    id: 103,
+    name: "Бизнес и стартапы",
+    avatar: "БС",
+    description: "Истории успеха, инвестиции, фаундерам",
+    subscribers: "210 тыс.",
+    verified: true,
+    posts: [
+      { id: 1, text: "📈 Российский рынок венчурных инвестиций вырос на 23% в первом квартале 2026. Наибольший рост — в сегменте B2B SaaS.", time: "19:45", views: 22000 },
+      { id: 2, text: "💡 Как запустить MVP за 2 недели без программиста — пошаговый гайд от основателя, который сделал это трижды.", time: "12:00", views: 31000 },
+    ],
+  },
+  {
+    id: 104,
+    name: "Космос и наука",
+    avatar: "🌌",
+    description: "Последние открытия и миссии",
+    subscribers: "87 тыс.",
+    verified: true,
+    posts: [
+      { id: 1, text: "🛸 SpaceX успешно провела 15-й тестовый запуск Starship. Корабль впервые совершил мягкую посадку на платформу в Тихом океане.", time: "23:30", views: 45000 },
+      { id: 2, text: "🔭 Телескоп Джеймса Уэбба обнаружил признаки органических молекул в атмосфере экзопланеты K2-18b. Учёные осторожны, но взволнованы.", time: "16:00", views: 38000 },
+    ],
+  },
+];
+
 const NOTIFICATIONS = [
   { id: 1, text: "Алексей Морозов написал вам сообщение", time: "21:47", type: "message", avatar: "АМ" },
   { id: 2, text: "Вас добавили в группу «Дизайнеры»", time: "16:00", type: "group", avatar: "🎨" },
@@ -201,6 +263,8 @@ export default function Index() {
   const [callModal, setCallModal] = useState<{ contact: string; type: "voice" | "video" } | null>(null);
   const [pinnedIds, setPinnedIds] = useState<Set<number>>(new Set());
   const [contextMenu, setContextMenu] = useState<{ chatId: number; x: number; y: number } | null>(null);
+  const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
+  const [subscribedChannels, setSubscribedChannels] = useState<Set<number>>(new Set([101, 103]));
   const [messages, setMessages] = useState<Record<number, Message[]>>(
     Object.fromEntries(CHATS.map(c => [c.id, c.messages]))
   );
@@ -240,8 +304,17 @@ export default function Index() {
       return ap - bp;
     });
 
+  const toggleSubscribe = (id: number) => {
+    setSubscribedChannels(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) { next.delete(id); } else { next.add(id); }
+      return next;
+    });
+  };
+
   const navItems = [
     { id: "chats" as Section, icon: "MessageCircle", label: "Чаты" },
+    { id: "channels" as Section, icon: "Rss", label: "Каналы" },
     { id: "groups" as Section, icon: "Users", label: "Группы" },
     { id: "contacts" as Section, icon: "Contact", label: "Контакты" },
     { id: "notifications" as Section, icon: "Bell", label: "Уведомления" },
@@ -283,13 +356,14 @@ export default function Index() {
         <div className="px-4 pt-5 pb-3">
           <h1 className="text-lg font-bold mb-3" style={{ color: "var(--tg-text)" }}>
             {section === "chats" && "Чаты"}
+            {section === "channels" && "Каналы"}
             {section === "contacts" && "Контакты"}
             {section === "groups" && "Группы"}
             {section === "notifications" && "Уведомления"}
             {section === "settings" && "Настройки"}
             {section === "profile" && "Мой профиль"}
           </h1>
-          {(section === "chats" || section === "contacts") && (
+          {(section === "chats" || section === "contacts" || section === "channels") && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: "var(--tg-hover)" }}>
               <Icon name="Search" size={15} className="flex-shrink-0" style={{ color: "var(--tg-text-secondary)" } as React.CSSProperties} />
               <input
@@ -387,6 +461,63 @@ export default function Index() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Каналы */}
+        {section === "channels" && (
+          <div className="overflow-y-auto flex-1 px-2">
+            <div className="mb-2">
+              <p className="px-1 pb-2 text-xs" style={{ color: "var(--tg-text-secondary)" }}>Мои подписки</p>
+              {CHANNELS.filter(c => subscribedChannels.has(c.id) && c.name.toLowerCase().includes(searchQuery.toLowerCase())).map(ch => (
+                <button
+                  key={ch.id}
+                  onClick={() => setSelectedChannel(ch)}
+                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl mb-1 text-left transition-all hover:scale-[1.01]"
+                  style={{ background: selectedChannel?.id === ch.id ? "rgba(43,133,236,0.15)" : "var(--tg-hover)" }}
+                >
+                  <div className="relative flex-shrink-0">
+                    <div className={`w-11 h-11 rounded-full flex items-center justify-center font-semibold text-white text-sm bg-gradient-to-br ${getColor(ch.avatar)}`}>{ch.avatar}</div>
+                    {ch.verified && (
+                      <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: "var(--tg-accent)" }}>
+                        <Icon name="Check" size={9} className="text-white" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1">
+                      <p className="font-semibold text-sm truncate" style={{ color: "var(--tg-text)" }}>{ch.name}</p>
+                    </div>
+                    <p className="text-xs truncate mt-0.5" style={{ color: "var(--tg-text-secondary)" }}>{ch.subscribers} подписчиков</p>
+                  </div>
+                  <span className="text-xs flex-shrink-0" style={{ color: "var(--tg-text-secondary)" }}>{ch.posts[0]?.time}</span>
+                </button>
+              ))}
+            </div>
+            {CHANNELS.filter(c => !subscribedChannels.has(c.id) && c.name.toLowerCase().includes(searchQuery.toLowerCase())).length > 0 && (
+              <div className="mt-2">
+                <p className="px-1 pb-2 text-xs" style={{ color: "var(--tg-text-secondary)" }}>Рекомендуемые</p>
+                {CHANNELS.filter(c => !subscribedChannels.has(c.id) && c.name.toLowerCase().includes(searchQuery.toLowerCase())).map(ch => (
+                  <div key={ch.id} className="flex items-center gap-3 px-3 py-3 rounded-xl mb-1" style={{ background: "var(--tg-hover)" }}>
+                    <div className="relative flex-shrink-0">
+                      <div className={`w-11 h-11 rounded-full flex items-center justify-center font-semibold text-white text-sm bg-gradient-to-br ${getColor(ch.avatar)}`}>{ch.avatar}</div>
+                      {ch.verified && (
+                        <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: "var(--tg-accent)" }}>
+                          <Icon name="Check" size={9} className="text-white" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm truncate" style={{ color: "var(--tg-text)" }}>{ch.name}</p>
+                      <p className="text-xs truncate mt-0.5" style={{ color: "var(--tg-text-secondary)" }}>{ch.subscribers} подписчиков</p>
+                    </div>
+                    <button onClick={() => toggleSubscribe(ch.id)} className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all hover:opacity-80" style={{ background: "var(--tg-accent)" }}>
+                      + Подписаться
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -493,6 +624,96 @@ export default function Index() {
           </div>
         )}
       </div>
+
+      {/* Область канала */}
+      {section === "channels" && selectedChannel ? (
+        <div className="flex flex-col flex-1 min-w-0">
+          {/* Шапка канала */}
+          <div className="flex items-center gap-3 px-5 py-3 border-b flex-shrink-0" style={{ background: "var(--tg-bg)", borderColor: "var(--tg-border)" }}>
+            <div className="relative flex-shrink-0">
+              <div className={`w-11 h-11 rounded-full flex items-center justify-center font-semibold text-white text-sm bg-gradient-to-br ${getColor(selectedChannel.avatar)}`}>{selectedChannel.avatar}</div>
+              {selectedChannel.verified && (
+                <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: "var(--tg-accent)" }}>
+                  <Icon name="Check" size={9} className="text-white" />
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm" style={{ color: "var(--tg-text)" }}>{selectedChannel.name}</p>
+              <p className="text-xs" style={{ color: "var(--tg-text-secondary)" }}>{selectedChannel.subscribers} подписчиков</p>
+            </div>
+            <button
+              onClick={() => toggleSubscribe(selectedChannel.id)}
+              className="px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-80"
+              style={subscribedChannels.has(selectedChannel.id)
+                ? { background: "var(--tg-hover)", color: "var(--tg-text-secondary)" }
+                : { background: "var(--tg-accent)", color: "#fff" }}
+            >
+              {subscribedChannels.has(selectedChannel.id) ? "Отписаться" : "+ Подписаться"}
+            </button>
+            <button className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-110 ml-1" style={{ background: "rgba(255,255,255,0.05)" }}>
+              <Icon name="MoreVertical" size={16} style={{ color: "var(--tg-text-secondary)" }} />
+            </button>
+          </div>
+
+          {/* Посты канала */}
+          <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4" style={{ background: "var(--tg-chat-bg)" }}>
+            {/* Шапка канала */}
+            <div className="flex flex-col items-center py-6 animate-fade-in">
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center font-bold text-white text-xl bg-gradient-to-br ${getColor(selectedChannel.avatar)} mb-3`}>{selectedChannel.avatar}</div>
+              <h2 className="font-bold text-lg" style={{ color: "var(--tg-text)" }}>{selectedChannel.name}</h2>
+              <p className="text-sm mt-1 text-center max-w-xs" style={{ color: "var(--tg-text-secondary)" }}>{selectedChannel.description}</p>
+              <div className="flex items-center gap-1 mt-2">
+                <Icon name="Users" size={13} style={{ color: "var(--tg-text-secondary)" }} />
+                <span className="text-xs" style={{ color: "var(--tg-text-secondary)" }}>{selectedChannel.subscribers} подписчиков</span>
+              </div>
+            </div>
+
+            <div style={{ borderTop: "1px solid var(--tg-border)" }} />
+
+            {selectedChannel.posts.map((post, i) => (
+              <div key={post.id} className="rounded-2xl p-4 animate-message-in" style={{ background: "var(--tg-message-in)", animationDelay: `${i * 0.07}s` }}>
+                <p className="text-sm leading-relaxed" style={{ color: "var(--tg-text)" }}>{post.text}</p>
+                <div className="flex items-center justify-between mt-3 pt-2" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                  <div className="flex items-center gap-3">
+                    <button className="flex items-center gap-1.5 hover:opacity-70 transition-opacity">
+                      <Icon name="Heart" size={14} style={{ color: "var(--tg-text-secondary)" }} />
+                      <span className="text-xs" style={{ color: "var(--tg-text-secondary)" }}>Нравится</span>
+                    </button>
+                    <button className="flex items-center gap-1.5 hover:opacity-70 transition-opacity">
+                      <Icon name="Share2" size={14} style={{ color: "var(--tg-text-secondary)" }} />
+                      <span className="text-xs" style={{ color: "var(--tg-text-secondary)" }}>Поделиться</span>
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Icon name="Eye" size={12} style={{ color: "var(--tg-text-secondary)" }} />
+                    <span className="text-xs" style={{ color: "var(--tg-text-secondary)" }}>{post.views.toLocaleString("ru-RU")}</span>
+                    <span className="text-xs ml-2" style={{ color: "var(--tg-text-secondary)" }}>{post.time}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Строка только для чтения */}
+          <div className="px-4 py-3 flex items-center gap-3 border-t" style={{ background: "var(--tg-bg)", borderColor: "var(--tg-border)" }}>
+            <div className="flex-1 flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5" style={{ background: "var(--tg-hover)" }}>
+              <Icon name="Lock" size={14} style={{ color: "var(--tg-text-secondary)" }} />
+              <span className="text-sm" style={{ color: "var(--tg-text-secondary)" }}>Канал только для чтения</span>
+            </div>
+          </div>
+        </div>
+      ) : section === "channels" ? (
+        <div className="flex-1 flex flex-col items-center justify-center gap-4" style={{ background: "var(--tg-chat-bg)" }}>
+          <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ background: "rgba(43,133,236,0.1)" }}>
+            <Icon name="Rss" size={32} style={{ color: "var(--tg-accent)" }} />
+          </div>
+          <div className="text-center">
+            <h2 className="text-lg font-semibold mb-1" style={{ color: "var(--tg-text)" }}>Каналы</h2>
+            <p className="text-sm" style={{ color: "var(--tg-text-secondary)" }}>Выберите канал для просмотра</p>
+          </div>
+        </div>
+      ) : null}
 
       {/* Область чата */}
       {section === "chats" && selectedChat ? (
