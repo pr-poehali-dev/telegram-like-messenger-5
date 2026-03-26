@@ -265,6 +265,7 @@ export default function Index() {
   const [contextMenu, setContextMenu] = useState<{ chatId: number; x: number; y: number } | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [subscribedChannels, setSubscribedChannels] = useState<Set<number>>(new Set([101, 103]));
+  const [flashingChannelId, setFlashingChannelId] = useState<number | null>(null);
   const [messages, setMessages] = useState<Record<number, Message[]>>(
     Object.fromEntries(CHATS.map(c => [c.id, c.messages]))
   );
@@ -305,6 +306,8 @@ export default function Index() {
     });
 
   const toggleSubscribe = (id: number) => {
+    setFlashingChannelId(id);
+    setTimeout(() => setFlashingChannelId(null), 500);
     setSubscribedChannels(prev => {
       const next = new Set(prev);
       if (next.has(id)) { next.delete(id); } else { next.add(id); }
@@ -644,7 +647,9 @@ export default function Index() {
             </div>
             <button
               onClick={() => toggleSubscribe(selectedChannel.id)}
-              className="px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-80"
+              className={`px-4 py-2 rounded-xl text-sm font-semibold subscribe-btn ${
+                subscribedChannels.has(selectedChannel.id) ? "unsubscribe-btn" : ""
+              } ${flashingChannelId === selectedChannel.id ? "flashing" : ""}`}
               style={subscribedChannels.has(selectedChannel.id)
                 ? { background: "var(--tg-hover)", color: "var(--tg-text-secondary)" }
                 : { background: "var(--tg-accent)", color: "#fff" }}
