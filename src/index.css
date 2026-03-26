@@ -295,3 +295,54 @@
     transform: scale(1);
   }
 }
+
+/* Реакции на посты */
+.reaction-btn {
+  cursor: pointer;
+  position: relative;
+}
+
+.reaction-btn.reaction-pop {
+  animation: reactionPop 0.38s cubic-bezier(0.34, 1.7, 0.64, 1) forwards;
+}
+
+@keyframes reactionPop {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(0.82);
+  }
+  65% {
+    transform: scale(1.22);
+  }
+  85% {
+    transform: scale(0.96);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.emoji-bounce {
+  display: inline-block;
+  animation: emojiBounce 0.45s cubic-bezier(0.34, 1.9, 0.64, 1) forwards;
+}
+
+@keyframes emojiBounce {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  25% {
+    transform: scale(0.7) rotate(-12deg);
+  }
+  55% {
+    transform: scale(1.5) rotate(8deg);
+  }
+  75% {
+    transform: scale(0.92) rotate(-3deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}

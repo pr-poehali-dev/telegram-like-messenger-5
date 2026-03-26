@@ -266,6 +266,22 @@ export default function Index() {
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [subscribedChannels, setSubscribedChannels] = useState<Set<number>>(new Set([101, 103]));
   const [flashingChannelId, setFlashingChannelId] = useState<number | null>(null);
+  const [reactions, setReactions] = useState<Record<string, string[]>>({});
+  const [reactionAnim, setReactionAnim] = useState<Record<string, string>>({});
+
+  const REACTION_LIST = ["❤️", "🔥", "👍", "😂", "😮", "🎉"];
+
+  const toggleReaction = (postKey: string, emoji: string) => {
+    setReactions(prev => {
+      const cur = prev[postKey] || [];
+      const next = cur.includes(emoji) ? cur.filter(e => e !== emoji) : [...cur, emoji];
+      return { ...prev, [postKey]: next };
+    });
+    const animKey = `${postKey}-${emoji}`;
+    setReactionAnim(prev => ({ ...prev, [animKey]: "pop" }));
+    setTimeout(() => setReactionAnim(prev => { const n = { ...prev }; delete n[animKey]; return n; }), 400);
+  };
+
   const [messages, setMessages] = useState<Record<number, Message[]>>(
     Object.fromEntries(CHATS.map(c => [c.id, c.messages]))
   );
@@ -676,28 +692,53 @@ export default function Index() {
 
             <div style={{ borderTop: "1px solid var(--tg-border)" }} />
 
-            {selectedChannel.posts.map((post, i) => (
-              <div key={post.id} className="rounded-2xl p-4 animate-message-in" style={{ background: "var(--tg-message-in)", animationDelay: `${i * 0.07}s` }}>
-                <p className="text-sm leading-relaxed" style={{ color: "var(--tg-text)" }}>{post.text}</p>
-                <div className="flex items-center justify-between mt-3 pt-2" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-                  <div className="flex items-center gap-3">
-                    <button className="flex items-center gap-1.5 hover:opacity-70 transition-opacity">
-                      <Icon name="Heart" size={14} style={{ color: "var(--tg-text-secondary)" }} />
-                      <span className="text-xs" style={{ color: "var(--tg-text-secondary)" }}>Нравится</span>
-                    </button>
+            {selectedChannel.posts.map((post, i) => {
+              const postKey = `${selectedChannel.id}-${post.id}`;
+              const myReactions = reactions[postKey] || [];
+              return (
+                <div key={post.id} className="rounded-2xl p-4 animate-message-in" style={{ background: "var(--tg-message-in)", animationDelay: `${i * 0.07}s` }}>
+                  <p className="text-sm leading-relaxed" style={{ color: "var(--tg-text)" }}>{post.text}</p>
+
+                  {/* Реакции */}
+                  <div className="flex flex-wrap gap-1.5 mt-3">
+                    {REACTION_LIST.map(emoji => {
+                      const active = myReactions.includes(emoji);
+                      const animKey = `${postKey}-${emoji}`;
+                      const isPopping = reactionAnim[animKey] === "pop";
+                      return (
+                        <button
+                          key={emoji}
+                          onClick={() => toggleReaction(postKey, emoji)}
+                          className={`reaction-btn flex items-center gap-1 px-2 py-1 rounded-full text-sm transition-all select-none ${isPopping ? "reaction-pop" : ""}`}
+                          style={{
+                            background: active ? "rgba(43,133,236,0.25)" : "rgba(255,255,255,0.06)",
+                            border: `1px solid ${active ? "rgba(43,133,236,0.5)" : "rgba(255,255,255,0.08)"}`,
+                            color: active ? "var(--tg-accent)" : "var(--tg-text-secondary)",
+                            fontSize: 15,
+                            lineHeight: 1,
+                          }}
+                        >
+                          <span className={isPopping ? "emoji-bounce" : ""}>{emoji}</span>
+                          {active && <span className="text-xs font-semibold ml-0.5" style={{ color: "var(--tg-accent)", fontSize: 10 }}>1</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex items-center justify-between mt-3 pt-2" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
                     <button className="flex items-center gap-1.5 hover:opacity-70 transition-opacity">
                       <Icon name="Share2" size={14} style={{ color: "var(--tg-text-secondary)" }} />
                       <span className="text-xs" style={{ color: "var(--tg-text-secondary)" }}>Поделиться</span>
                     </button>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Icon name="Eye" size={12} style={{ color: "var(--tg-text-secondary)" }} />
-                    <span className="text-xs" style={{ color: "var(--tg-text-secondary)" }}>{post.views.toLocaleString("ru-RU")}</span>
-                    <span className="text-xs ml-2" style={{ color: "var(--tg-text-secondary)" }}>{post.time}</span>
+                    <div className="flex items-center gap-1">
+                      <Icon name="Eye" size={12} style={{ color: "var(--tg-text-secondary)" }} />
+                      <span className="text-xs" style={{ color: "var(--tg-text-secondary)" }}>{post.views.toLocaleString("ru-RU")}</span>
+                      <span className="text-xs ml-2" style={{ color: "var(--tg-text-secondary)" }}>{post.time}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Строка только для чтения */}
